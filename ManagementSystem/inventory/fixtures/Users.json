@@ -1,0 +1,35 @@
+[
+  {
+    "model": "inventory.customuser",
+    "pk": "kritika@dummy.com",
+    "fields": {
+      "username": "kritika",
+      "password": "dummyhashedpassword",
+      "role": "STORE_ASSISTANT",
+      "last_successful_auth": "0",
+      "auth_token": ""
+    }
+  },
+  {
+    "model": "inventory.customuser",
+    "pk": "useradmin@dummy.com",
+    "fields": {
+      "username": "useradmin",
+      "password": "password",
+      "role": "STORE_MANAGER",
+      "last_successful_auth": "0",
+      "auth_token": ""
+    }
+  },
+  {
+    "model": "inventory.customuser",
+    "pk": "usernormal@dummy.com",
+    "fields": {
+      "username": "usernormal",
+      "password": "password",
+      "role": "STORE_ASSISTANT",
+      "last_successful_auth": "0",
+      "auth_token": ""
+    }
+  }
+]
