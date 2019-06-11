@@ -23,9 +23,12 @@ def inventory(request, user=None):
                 response_dict['Message'] = "Illegal request body"
         if request.method == "PUT":
             res, msg = InventoryHandler.update(data_list=json.loads(request.body), user=user, operation="CREATE")
+        if request.method == "DELETE":
+            res, msg = InventoryHandler.delete(data_list=json.loads(request.body), user=user)
         if request.method != "GET" and not res:
             status_code = 401
             response_dict['Message'] = msg
+        response_dict['Mesage'] = msg
     except Exception:
         pass
     return JsonResponse(data=response_dict, safe=False, status=status_code)
@@ -46,19 +49,34 @@ def approvals(request, user=None):
         all_objects_json = serializers.serialize('json', Approvals.objects.all())
         response_dict = json.loads(all_objects_json)
     if request.method == "POST":
+        if CustomUserManager.is_admin(user=user):
+            return JsonResponse(data={"Message": "Only admins are allowed to modify approvals"},  status=401)
         if 'id' in json.loads(request.body):
-            res, msg = ApprovalsHandler.approve_request(approval_row_id=json.loads(request.body)['id'])
+            res, msg = ApprovalsHandler.approve_request(approval_row_id=json.loads(request.body)['id'], user=user)
             if not res:
                 status_code = 401
                 response_dict['Message'] = msg
+            else:
+                response_dict["Message"] = msg
+        else:
+            status_code = 401
+            response_dict['Message'] = "id Key missing"
+    if request.method == "DELETE":
+        if CustomUserManager.is_admin(user=user):
+            return JsonResponse(data={"Message": "Only admins are allowed to modify approvals"},  status=401)
+        if 'id' in json.loads(request.body):
+            res, msg = ApprovalsHandler.deny_request(approval_row_id=json.loads(request.body)['id'], user=user)
+            if not res:
+                status_code = 401
+                response_dict['Message'] = msg
+            else:
+                response_dict["Message"] = msg
         else:
             status_code = 401
             response_dict['Message'] = "id Key missing"
     return JsonResponse(data=response_dict, safe=False, status=status_code)
 
 
-# if 'auth_token' in request.headers and request.headers['auth_token']:
-#     CustomUserManager.get_user(auth_token=request.headers['auth_token'])
 class IllegalMethodException(Exception):
     pass
 

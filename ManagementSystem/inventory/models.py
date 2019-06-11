@@ -145,7 +145,7 @@ class ApprovalsHandler:
             new_approval_row.save()
 
     @staticmethod
-    def approve_request(approval_row_id):
+    def approve_request(approval_row_id, user):
         try:
             approval_object = Approvals.objects.get(id=approval_row_id)
             row_dict = {
@@ -161,9 +161,9 @@ class ApprovalsHandler:
             }
             if approval_object.operation == "UPDATE" or approval_object.operation == "CREATE":
                 res, msg = InventoryHandler.update(data_list=[row_dict], operation=approval_object.operation,
-                                                   user=approval_object.email_id)
+                                                   user=user, is_approval_request=True)
             elif approval_object.operation == "DELETE":
-                res, msg = InventoryHandler.delete(data_list=[row_dict], user=approval_object.email_id)
+                res, msg = InventoryHandler.delete(data_list=[row_dict], user=user, is_approval_request=True)
             if res:
                 approval_object.delete()
             return res, msg
@@ -171,10 +171,12 @@ class ApprovalsHandler:
             return False, "Invalid Approval ID"
 
     @staticmethod
-    def deny_request(approval_row_id):
+    def deny_request(approval_row_id, user):
         try:
             approval_object = Approvals.objects.get(id=approval_row_id)
+            data_list = [{"product_id":approval_object.product_id}]
             approval_object.delete()
+            InventoryHandler.unlock_row(data_list=data_list, user=user)
             return True, "Successfully deleted the Approval"
         except Approvals.DoesNotExist:
             return False, "Approval ID does not exist"
@@ -185,8 +187,9 @@ class InventoryHandler:
     primary_key = 'product_id'
 
     @staticmethod
-    def update(data_list, operation, user):
+    def update(data_list, operation, user, is_approval_request=False):
         """
+        :param is_approval_request: Only when approving a request
         :param user: models.CustomUser object (The user that has made the request)
         :param operation: string, Allowed Values => "UPDATE", "CREATE"
         :param data_list: list of dicts, where each dict should have keys as database column names
@@ -209,7 +212,7 @@ class InventoryHandler:
                     required_model = Inventory.objects.get(product_id=row_dict['product_id'])
                 else:
                     required_model = Inventory()
-                if required_model.status == "PENDING":
+                if is_approval_request is not True and required_model.status == "PENDING":
                     raise LockedRowUpdateRequest
                 for sent_attribute in row_dict:
                     # Ensure that the sent field is actually a field. Raises AttributeError if Illegal field
@@ -254,7 +257,7 @@ class InventoryHandler:
         return success_status, message
 
     @staticmethod
-    def delete(data_list, user):
+    def delete(data_list, user, is_approval_request=False):
         all_models_to_delete = []
         success_status = False
         message = "Unknown Error"
@@ -263,7 +266,7 @@ class InventoryHandler:
                 if 'product_id' not in row_dict:
                     raise PrimaryKeyMissingException
                 model_to_delete = Inventory.objects.get(product_id=row_dict['product_id'])
-                if model_to_delete.status == "PENDING":
+                if is_approval_request is not True and model_to_delete.status == "PENDING":
                     raise LockedRowUpdateRequest
                 all_models_to_delete.append(model_to_delete)
 
@@ -292,3 +295,30 @@ class InventoryHandler:
             if not CustomUserManager.is_admin(user=user):
                 message = message + " (subject to Admin approval)"
         return success_status, message
+
+    @staticmethod
+    def unlock_row(data_list, user):
+        all_models_to_update = []
+        success_status = False
+        message = "Unknown Error"
+        if not CustomUserManager.is_admin(user=user):
+            return False, "Only managers can unlock rows"
+        try:
+            for row_dict in data_list:
+                if 'product_id' not in row_dict:
+                    raise PrimaryKeyMissingException
+                model_to_approve = Inventory.objects.get(product_id=row_dict['product_id'])
+                model_to_approve.status = "APPROVED"
+                all_models_to_update.append(model_to_approve)
+
+            for model_to_approve in all_models_to_update:
+                model_to_approve.save(update_fields=['status'])
+        except Inventory.DoesNotExist:
+            message = "Requested Object Does not exist"
+        except PrimaryKeyMissingException:
+            message = "Primary key not sent"
+        else:
+            success_status = True
+            message = "All attributes updated successfully"
+        return success_status, message
+
