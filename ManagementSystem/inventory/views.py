@@ -49,7 +49,7 @@ def approvals(request, user=None):
         all_objects_json = serializers.serialize('json', Approvals.objects.all())
         response_dict = json.loads(all_objects_json)
     if request.method == "POST":
-        if CustomUserManager.is_admin(user=user):
+        if not CustomUserManager.is_admin(user=user):
             return JsonResponse(data={"Message": "Only admins are allowed to modify approvals"},  status=401)
         if 'id' in json.loads(request.body):
             res, msg = ApprovalsHandler.approve_request(approval_row_id=json.loads(request.body)['id'], user=user)
@@ -62,7 +62,7 @@ def approvals(request, user=None):
             status_code = 401
             response_dict['Message'] = "id Key missing"
     if request.method == "DELETE":
-        if CustomUserManager.is_admin(user=user):
+        if not CustomUserManager.is_admin(user=user):
             return JsonResponse(data={"Message": "Only admins are allowed to modify approvals"},  status=401)
         if 'id' in json.loads(request.body):
             res, msg = ApprovalsHandler.deny_request(approval_row_id=json.loads(request.body)['id'], user=user)
