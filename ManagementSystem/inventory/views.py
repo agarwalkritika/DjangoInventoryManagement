@@ -1,4 +1,5 @@
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from .models import Inventory, InventoryHandler, Approvals, ApprovalsHandler, CustomUserManager
 from .authorizer import auth_required
@@ -14,7 +15,14 @@ def inventory(request, user=None):
     try:
         if request.method == "GET":
             all_objects_json = serializers.serialize('json', Inventory.objects.all())
-            response_dict = json.loads(all_objects_json)
+            retrieved_data = json.loads(all_objects_json)
+            final_data = []
+            for record in retrieved_data:
+                record_dict = record['fields']
+                record_dict['product_id'] = record['pk']
+                final_data.append(record_dict)
+            response_dict['InventoryRecords'] = final_data
+
         if request.method == "POST":
             if isinstance(json.loads(request.body), list):
                 res, msg = InventoryHandler.update(data_list=json.loads(request.body), user=user, operation="UPDATE")
@@ -31,7 +39,10 @@ def inventory(request, user=None):
         response_dict['Mesage'] = msg
     except Exception:
         pass
-    return JsonResponse(data=response_dict, safe=False, status=status_code)
+    if "web" in request.path:
+        return render(request=request, template_name='inventory.html', context= response_dict, status=status_code)
+    else:
+        return JsonResponse(data=response_dict, safe=False, status=status_code)
 
 
 @csrf_exempt
