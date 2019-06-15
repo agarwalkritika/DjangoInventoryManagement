@@ -10,6 +10,11 @@
 </p>
 <p>
 <form method="post">
+    <p>
+        <a href="{% url 'logout' %}">Click here to logout</a>
+        <br>
+        <a href="{% url 'inventory' %}">Go Back to Inventory Records</a>
+    </p>
     <button type="submit" name="operation" value="APPROVE">Approve</button>
     <button type="submit" name="operation" value="DENY">Deny</button>
     <table border="1">

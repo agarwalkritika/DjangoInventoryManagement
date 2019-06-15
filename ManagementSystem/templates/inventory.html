@@ -6,6 +6,8 @@
 </head>
 <body>
 <p>
+<a href="{% url 'logout' %}">Click here to logout</a>
+    <button type="button"><a href="{% url 'inventoryitem' operation='CREATE' %}">Add a new Inventory Item</a></button>
     <table border="1">
     <caption>Inventory Information</caption>
   <tr>

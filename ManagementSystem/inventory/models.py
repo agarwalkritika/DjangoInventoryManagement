@@ -1,8 +1,10 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.core import serializers
 from .exceptions import *
 import time
 import uuid
+import json
 
 max_logged_in_time = 1 * 60 * 60 * 1000  # maximum time in milliseconds
 
@@ -271,6 +273,20 @@ class Approvals(models.Model):
 
 class ApprovalsHandler:
     @staticmethod
+    def get_all_items_list():
+        """
+        :return: List of dicts, where each dict represents 1 row in the DB table
+        """
+        all_objects_json = serializers.serialize('json', Approvals.objects.all())
+        retrieved_data = json.loads(all_objects_json)
+        final_data = []
+        for record in retrieved_data:
+            record_dict = record['fields']
+            record_dict['id'] = record['pk']
+            final_data.append(record_dict)
+        return final_data
+
+    @staticmethod
     def create_approval(data_list, operation, requester, request_id):
         # Not validating anything here, as the caller model handler is expected to do validations before sending
         for row_dict in data_list:
@@ -315,9 +331,12 @@ class ApprovalsHandler:
     @staticmethod
     def deny_request(approval_row_id, user):
         try:
-            if not CustomUserManager.is_admin(user=user):
-                return False, "Only Admins Can Approve Requests"
             approval_object = Approvals.objects.get(id=approval_row_id)
+            if not CustomUserManager.is_admin(user=user):
+                if approval_object.email_id.email_id == user.email_id:
+                    pass    # If requester wants to deny his own request, letting him do that
+                else:
+                    return False, "Only Admins Can Approve Requests"
             data_list = [{"product_id":approval_object.product_id}]
             approval_object.delete()
             InventoryHandler.unlock_row(data_list=data_list, user=user)

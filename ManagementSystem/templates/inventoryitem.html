@@ -5,6 +5,7 @@
     <title>Inventory Records</title>
 </head>
 <body>
+<a href="{% url 'logout' %}">Click here to logout</a>
 <form method="post">
     {% csrf_token %}
     {{ form.as_p }}

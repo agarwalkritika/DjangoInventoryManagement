@@ -71,6 +71,7 @@ def inventoryitem(request, operation, user=None, product_id=None):
         pass  # The error message is already set
     else:
         status_code = 200
+        context.pop('error', None)
     return render(request=request, template_name="inventoryitem.html", context=context, status=status_code)
 
 
@@ -150,14 +151,7 @@ def approvals(request, user=None):
         msg = ""
         operation, approval_id = get_id_and_operation(request)  # Uniforms API and web requests
         if operation == "FETCH":
-            all_objects_json = serializers.serialize('json', Approvals.objects.all())
-            retrieved_data = json.loads(all_objects_json)
-            final_data = []
-            for record in retrieved_data:
-                record_dict = record['fields']
-                record_dict['id'] = record['pk']
-                final_data.append(record_dict)
-            response_dict['ApprovalRecords'] = final_data
+            response_dict['ApprovalRecords'] = ApprovalsHandler.get_all_items_list()
         if operation == "APPROVE":
             res, msg = ApprovalsHandler.approve_request(approval_row_id=approval_id, user=user)
         if operation == "DENY":
@@ -169,6 +163,7 @@ def approvals(request, user=None):
     except IllegalBodyException:
         response_dict['Message'] = "Illegal Body"
     if "web" in request.path:
+        response_dict['ApprovalRecords'] = ApprovalsHandler.get_all_items_list()    # So that we don't render a blank table
         return render(request=request, template_name='approvals.html', context= response_dict, status=status_code)
     else:
         return JsonResponse(data=response_dict, status=status_code)
