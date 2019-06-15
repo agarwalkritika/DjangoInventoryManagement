@@ -1,42 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>Approvals
+<head>
     <meta charset="UTF-8">
     <title>Approval Details</title>
 </head>
 <body>
-<p>
-    {{ Message }}
-</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <title>Approvals</title>
+</head>
+<body>
+<nav class="navbar navbar-inverse">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <a class="navbar-brand">Active Approvals</a>
+    </div>
+    <ul class="nav navbar-nav">
+      <li><a href="{% url 'inventory' %}">Inventory</a></li>
+      <li class="active"><a href="{% url 'approvals' %}">Approvals</a></li>
+    </ul>
+    <ul class="nav navbar-nav navbar-right">
+        <li><a href="#"><span class="glyphicon glyphicon-user"></span>{{ user_email }}</a></li>
+      <li><a href="{% url 'logout' %}"><span class="glyphicon glyphicon-log-out"></span> Logout</a></li>
+    </ul>
+  </div>
+</nav>
+<div class="container">
+    <h2>Active Approvals</h2>
 <p>
 <form method="post">
-    <p>
-        <a href="{% url 'logout' %}">Click here to logout</a>
-        <br>
-        <a href="{% url 'inventory' %}">Go Back to Inventory Records</a>
-    </p>
-    <button type="submit" name="operation" value="APPROVE">Approve</button>
-    <button type="submit" name="operation" value="DENY">Deny</button>
-    <table border="1">
-    <caption>Approval Details</caption>
+    {% if approve_permission  %}
+        <button class="btn btn-success" type="submit" name="operation" value="APPROVE">Approve</button>
+    {% endif %}
+    <button class="btn btn-danger" type="submit" name="operation" value="DENY">Deny</button>
+    <table class="table">
   <tr>
     <th>Approval ID</th>
     <th>Operation</th>
-      <th>Product ID</th>
-    <th>Product Name</th>
-    <th>Status</th>
+     <th>Product ID</th>
+        <th>Product Name</th>
+          <th>vendor</th>
+          <th>mrp</th>
+          <th>batch_num</th>
+          <th>batch_date</th>
+          <th>quantity</th>
+        <th>Status</th>
   </tr>
     {% for approval_record in ApprovalRecords %}
   <tr>
       <td><input type="radio" name="id" value="{{ approval_record.id }}" checked> {{ approval_record.id }}<br></td>
       <td>{{ approval_record.operation }}</td>
       <td>{{ approval_record.product_id }}</td>
-      <td>{{ approval_record.product_name }}</td>
-      <td>{{ approval_record.status }}</td>
+          <td>{{ approval_record.product_name }}</td>
+          <td>{{ approval_record.vendor }}</td>
+          <td>{{ approval_record.mrp }}</td>
+          <td>{{ approval_record.batch_num }}</td>
+          <td>{{ approval_record.batch_date }}</td>
+          <td>{{ approval_record.quantity }}</td>
+          <td>{{ approval_record.status }}</td>
   </tr>
     {% endfor %}
 </table>
 </form>
 </p>
+</div>
+<div class="container">
+{% if error  %}
+    <div class="alert alert-warning">
+      <strong>{{ error }}</strong>
+    </div>
+{% endif %}
+{% if message  %}
+    <div class="alert alert-success">
+      <strong>{{ message }}</strong>
+    </div>
+{% endif %}
+</div>
+</body>
+</html>
 </body>
 </html>

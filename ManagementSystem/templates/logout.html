@@ -1,18 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
-<head> Logout
+<head>
     <meta charset="UTF-8">
-    <title>Logout</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <title>Login</title>
 </head>
 <body>
-<p>
-    {{ Message }}
-</p>
-<p>
-    {{ Error }}
-</p>
-<p>
-    Click <a href="{% url 'login' %}">here</a> to login
-</p>
+<nav class="navbar navbar-inverse">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <a class="navbar-brand">Inventory Management</a>
+    </div>
+    <ul class="nav navbar-nav">
+      <li class="active">Logout</li>
+    </ul>
+    <ul class="nav navbar-nav navbar-right">
+      <li><a href="{% url 'login' %}"><span class="glyphicon glyphicon-log-in"></span> Login</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="container form-group">
+    <h2>Logout</h2>
+    <a href="{% url 'login' %}" class="btn btn-primary btn-lg btn-block">Go to Login Page</a>
+</div>
+<div class="container">
+{% if error  %}
+    <div class="alert alert-warning">
+      <strong>{{ error }}</strong>
+    </div>
+{% endif %}
+{% if message  %}
+    <div class="alert alert-success">
+      <strong>{{ message }}</strong>
+    </div>
+{% endif %}
+</div>
 </body>
 </html>

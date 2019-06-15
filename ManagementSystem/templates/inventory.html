@@ -18,6 +18,7 @@
       <li><a href="{% url 'approvals' %}">Approvals</a></li>
     </ul>
     <ul class="nav navbar-nav navbar-right">
+        <li><a href="#"><span class="glyphicon glyphicon-user"></span>{{ user_email }}</a></li>
       <li><a href="{% url 'logout' %}"><span class="glyphicon glyphicon-log-out"></span> Logout</a></li>
     </ul>
   </div>
@@ -29,7 +30,6 @@
     <h2>Inventory Information</h2>
 <p>
     <table class="table">
-    <caption>Inventory Information</caption>
     <thead>
       <tr>
         <th>Product ID</th>
@@ -52,8 +52,8 @@
           <td>{{ inventory_record.vendor }}</td>
           <td>{{ inventory_record.mrp }}</td>
           <td>{{ inventory_record.batch_num }}</td>
+          <td>{{ inventory_record.batch_date }}</td>
           <td>{{ inventory_record.quantity }}</td>
-          <td>{{ inventory_record.status }}</td>
           <td>{{ inventory_record.status }}</td>
           <td><a class="btn btn-warning" href="{% url 'inventoryitemedit' product_id=inventory_record.product_id operation='UPDATE' %}">Edit</a></td>
           <td><a class="btn btn-danger" href="{% url 'inventoryitemedit' product_id=inventory_record.product_id operation='DELETE' %}">Delete</a></td>

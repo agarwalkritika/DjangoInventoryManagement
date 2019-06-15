@@ -10,9 +10,12 @@ import json
 
 
 @auth_required
-def inventoryitem(request, operation, user=None, product_id=None):
-    context = {'error': "Unknown Error"}
+def inventoryitem(request, operation, user, product_id=None):
+    context = {}
     status_code = 401
+    res = False
+    msg = ""
+    context['user_email'] = user.email_id
     try:
         if operation == "CREATE":
             if request.method == "GET":
@@ -25,10 +28,8 @@ def inventoryitem(request, operation, user=None, product_id=None):
                 form.cleaned_data['status'] = "PENDING"
                 data_list = [dict(form.cleaned_data)]
                 res, msg = InventoryHandler.update(data_list=data_list, user=user, operation="CREATE")
-                context['error'] = msg
-                if not res:
-                    raise OperationFailureException
         elif operation == "UPDATE" and product_id:
+            context['operation'] = "UPDATE"
             if request.method == "GET":
                 instance = Inventory.objects.get(product_id=product_id)
                 form = InventoryModelForm(instance=instance)
@@ -42,10 +43,8 @@ def inventoryitem(request, operation, user=None, product_id=None):
                 form.cleaned_data['status'] = "PENDING"
                 data_list = [dict(form.cleaned_data)]
                 res, msg = InventoryHandler.update(data_list=data_list, user=user, operation="UPDATE")
-                context['error'] = msg
-                if not res:
-                    raise OperationFailureException
         elif operation == "DELETE" and product_id:
+            context['operation'] = "DELETE"
             if request.method == "GET":
                 instance = Inventory.objects.get(product_id=product_id)
                 # TODO: If instance status is pending don't send the form in status, instead send error !
@@ -60,26 +59,27 @@ def inventoryitem(request, operation, user=None, product_id=None):
                 form.cleaned_data['status'] = "PENDING"
                 data_list = [dict(form.cleaned_data)]
                 res, msg = InventoryHandler.delete(data_list=data_list, user=user)
-                context['error'] = msg
-                if not res:
-                    raise OperationFailureException
+        if not res:
+            raise OperationFailureException
     except Inventory.DoesNotExist:
         context['error'] = "Illegal Product ID requested for alteration"
     except InvalidRequestException:
         context['error'] = "Invalid Request"
     except OperationFailureException:
-        pass  # The error message is already set
+        context['error'] = msg
     else:
         status_code = 200
+        context['message'] = msg
         context.pop('error', None)
     return render(request=request, template_name="inventoryitem.html", context=context, status=status_code)
 
 
 @csrf_exempt
 @auth_required
-def inventory(request, user=None):
+def inventory(request, user):
     status_code = 200
     response_dict = {}
+    response_dict['user_email'] = user.email_id
     try:
         res = True
         msg = ""
@@ -143,12 +143,14 @@ def approvals(request, user=None):
     :return:
     {'id' : int} => IDs of the approvals that need to be approved
     """
-    status_code = 200
+    # Initialising values for consistency
+    status_code = 401
     response_dict = {}
+    res = True
+    msg = ""
+    response_dict['user_email'] = user.email_id
+    response_dict['approve_permission'] = True if CustomUserManager.is_admin(user=user) else False
     try:
-        # Initialising values foe consistency
-        res = True
-        msg = ""
         operation, approval_id = get_id_and_operation(request)  # Uniforms API and web requests
         if operation == "FETCH":
             response_dict['ApprovalRecords'] = ApprovalsHandler.get_all_items_list()
@@ -156,12 +158,17 @@ def approvals(request, user=None):
             res, msg = ApprovalsHandler.approve_request(approval_row_id=approval_id, user=user)
         if operation == "DENY":
             res, msg = ApprovalsHandler.deny_request(approval_row_id=approval_id, user=user)
-        response_dict['Message'] = msg
-        status_code = 200 if res else 401
+        if not res:
+            raise OperationFailureException
     except IllegalMethodException:
-        response_dict['Message'] = "Illegal Method"
+        response_dict['message'] = "Illegal Method"
     except IllegalBodyException:
-        response_dict['Message'] = "Illegal Body"
+        response_dict['message'] = "Illegal Body"
+    except OperationFailureException:
+        response_dict['error'] = msg
+    else:
+        status_code = 200
+        response_dict['message'] = msg
     if "web" in request.path:
         response_dict['ApprovalRecords'] = ApprovalsHandler.get_all_items_list()    # So that we don't render a blank table
         return render(request=request, template_name='approvals.html', context= response_dict, status=status_code)
@@ -207,11 +214,11 @@ def login(request):
         else:
             raise IllegalMethodException
     except IllegalMethodException:
-        response_dict['Error'] = "Illegal request type"
+        response_dict['error'] = "Illegal request type"
     except IllegalBodyException:
-        response_dict['Error'] = "Illegal body"
+        response_dict['error'] = "Illegal body"
     except InvalidCredentialsException:
-        response_dict['Error'] = "Invalid Credentials"
+        response_dict['error'] = "Invalid Credentials"
     if 'web' in request.path:
         return render(request=request, template_name='login.html', context=response_dict)
     else:
@@ -237,12 +244,12 @@ def logout(request):
             raise IllegalBodyException
         if CustomUserManager.unauthenticate(user=user) is True:
             status_code = 200
-            response_dict['Message'] = "Signed Out successfully"
+            response_dict['message'] = "Signed Out successfully"
         else:
             status_code = 501
-            response_dict['Message'] = "ServerError. Could not logout !"
+            response_dict['error'] = "ServerError. Could not logout !"
     except IllegalBodyException:
-        response_dict['Error'] = "Illegal request"
+        response_dict['error'] = "Illegal request"
     if 'web' in request.path:
         return render(request=request, status=status_code, context=response_dict, template_name='logout.html')
     else:
