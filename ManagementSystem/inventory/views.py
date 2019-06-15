@@ -79,6 +79,9 @@ def inventory(request, user=None):
     status_code = 200
     response_dict = {}
     try:
+        res = True
+        msg = ""
+        # Handling for GET requests from web and API
         if request.method == "GET":
             all_objects_json = serializers.serialize('json', Inventory.objects.all())
             retrieved_data = json.loads(all_objects_json)
@@ -89,26 +92,44 @@ def inventory(request, user=None):
                 final_data.append(record_dict)
             response_dict['InventoryRecords'] = final_data
 
+        # Handling for only API requests
         if request.method == "POST":
-            if isinstance(json.loads(request.body), list):
-                res, msg = InventoryHandler.update(data_list=json.loads(request.body), user=user, operation="UPDATE")
-            else:
-                status_code = 401
-                response_dict['Message'] = "Illegal request body"
+            res, msg = InventoryHandler.update(data_list=json.loads(request.body), user=user, operation="UPDATE")
         if request.method == "PUT":
             res, msg = InventoryHandler.update(data_list=json.loads(request.body), user=user, operation="CREATE")
         if request.method == "DELETE":
             res, msg = InventoryHandler.delete(data_list=json.loads(request.body), user=user)
-        if request.method != "GET" and not res:
-            status_code = 401
-            response_dict['Message'] = msg
-        response_dict['Mesage'] = msg
-    except Exception:
-        pass
+
+        response_dict['Message'] = msg
+        status_code = 200 if res else 401
+    except IllegalBodyException:
+        response_dict['Message'] = "Illegal request body"
     if "web" in request.path:
         return render(request=request, template_name='inventory.html', context= response_dict, status=status_code)
     else:
         return JsonResponse(data=response_dict, safe=False, status=status_code)
+
+
+def get_id_and_operation(request):
+    operation = None
+    approval_id = None
+    if request.method == "GET":
+        operation = "FETCH"
+        return operation, approval_id
+    if 'web' in request.path and request.method == "POST":
+        operation = request.POST.get('operation', None)
+        approval_id = request.POST.get('id', None)
+    else:
+        approval_id = json.loads(request.body).get('id', None)
+        if request.method == "POST":
+            operation = "APPROVE"
+        elif request.method == "DELETE":
+            operation = "DENY"
+        else:
+            raise IllegalMethodException
+    if not approval_id or not operation:
+        raise IllegalBodyException
+    return operation, approval_id
 
 
 @csrf_exempt
@@ -122,36 +143,35 @@ def approvals(request, user=None):
     """
     status_code = 200
     response_dict = {}
-    if request.method == "GET":
-        all_objects_json = serializers.serialize('json', Approvals.objects.all())
-        response_dict = json.loads(all_objects_json)
-    if request.method == "POST":
-        if not CustomUserManager.is_admin(user=user):
-            return JsonResponse(data={"Message": "Only admins are allowed to modify approvals"},  status=401)
-        if 'id' in json.loads(request.body):
-            res, msg = ApprovalsHandler.approve_request(approval_row_id=json.loads(request.body)['id'], user=user)
-            if not res:
-                status_code = 401
-                response_dict['Message'] = msg
-            else:
-                response_dict["Message"] = msg
-        else:
-            status_code = 401
-            response_dict['Message'] = "id Key missing"
-    if request.method == "DELETE":
-        if not CustomUserManager.is_admin(user=user):
-            return JsonResponse(data={"Message": "Only admins are allowed to modify approvals"},  status=401)
-        if 'id' in json.loads(request.body):
-            res, msg = ApprovalsHandler.deny_request(approval_row_id=json.loads(request.body)['id'], user=user)
-            if not res:
-                status_code = 401
-                response_dict['Message'] = msg
-            else:
-                response_dict["Message"] = msg
-        else:
-            status_code = 401
-            response_dict['Message'] = "id Key missing"
-    return JsonResponse(data=response_dict, safe=False, status=status_code)
+    try:
+        # Initialising values foe consistency
+        res = True
+        msg = ""
+        operation, approval_id = get_id_and_operation(request)  # Uniforms API and web requests
+        if operation == "FETCH":
+            all_objects_json = serializers.serialize('json', Approvals.objects.all())
+            retrieved_data = json.loads(all_objects_json)
+            final_data = []
+            for record in retrieved_data:
+                record_dict = record['fields']
+                record_dict['id'] = record['pk']
+                final_data.append(record_dict)
+            response_dict['ApprovalRecords'] = final_data
+        if operation == "APPROVE":
+            res, msg = ApprovalsHandler.approve_request(approval_row_id=approval_id, user=user)
+        if operation == "DENY":
+            res, msg = ApprovalsHandler.deny_request(approval_row_id=approval_id, user=user)
+        response_dict['Message'] = msg
+        status_code = 200 if res else 401
+    except IllegalMethodException:
+        response_dict['Message'] = "Illegal Method"
+    except IllegalBodyException:
+        response_dict['Message'] = "Illegal Body"
+    if "web" in request.path:
+        return render(request=request, template_name='approvals.html', context= response_dict, status=status_code)
+    else:
+        return JsonResponse(data=response_dict, status=status_code)
+
 
 @csrf_exempt
 def login(request):

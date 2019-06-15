@@ -127,6 +127,8 @@ class InventoryHandler:
         """
         success_status = False
         message = "Unknown Error"
+        if not isinstance(data_list, list):
+            raise IllegalBodyException  # Not handling it here, letting the view handle this
         try:
             models_to_save = []
             for row_dict in data_list:
@@ -195,6 +197,7 @@ class InventoryHandler:
                 model_to_delete = Inventory.objects.get(product_id=row_dict['product_id'])
                 if is_approval_request is not True and model_to_delete.status == "PENDING":
                     raise LockedRowUpdateRequest
+                model_to_delete.full_clean()
                 all_models_to_delete.append(model_to_delete)
 
             for model_to_delete in all_models_to_delete:
@@ -205,8 +208,8 @@ class InventoryHandler:
                     ApprovalsHandler.create_approval(
                         data_list=data_list,
                         operation="DELETE",
-                        requester=CustomUser.objects.get(email_id="dummy@gmail.com"),
-                        request_id="ABCDF"
+                        requester=user,
+                        request_id="ABCDF"  # TODO: Keep the actual request ID here
                     )
                     model_to_delete.status = "PENDING"
                     model_to_delete.save(update_fields=['status'])
@@ -276,17 +279,16 @@ class ApprovalsHandler:
             new_approval_row.email_id = requester
             new_approval_row.operation = operation
             # All attributes are not required for the delete operation
-            if operation == "DELETE":
-                new_approval_row.product_id = row_dict['product_id']
-            else:
-                for sent_attribute, sent_attribute_value in row_dict.items():
-                    setattr(new_approval_row, sent_attribute, sent_attribute_value)
+            for sent_attribute, sent_attribute_value in row_dict.items():
+                setattr(new_approval_row, sent_attribute, sent_attribute_value)
             new_approval_row.status = "PENDING"
             new_approval_row.save()
 
     @staticmethod
     def approve_request(approval_row_id, user):
         try:
+            if not CustomUserManager.is_admin(user=user):
+                return False, "Only Admins Can Approve Requests"
             approval_object = Approvals.objects.get(id=approval_row_id)
             row_dict = {
                 "product_id":
@@ -313,6 +315,8 @@ class ApprovalsHandler:
     @staticmethod
     def deny_request(approval_row_id, user):
         try:
+            if not CustomUserManager.is_admin(user=user):
+                return False, "Only Admins Can Approve Requests"
             approval_object = Approvals.objects.get(id=approval_row_id)
             data_list = [{"product_id":approval_object.product_id}]
             approval_object.delete()
