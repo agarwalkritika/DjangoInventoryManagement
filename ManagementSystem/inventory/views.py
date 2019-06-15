@@ -4,24 +4,9 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Inventory, InventoryHandler, Approvals, ApprovalsHandler, CustomUserManager
 from .authorizer import auth_required
 from .forms import InventoryForm, InventoryModelForm
+from .exceptions import *
 from django.core import serializers
 import json
-
-
-
-class IllegalMethodException(Exception):
-    pass
-
-
-class IllegalBodyException(Exception):
-    pass
-
-class InvalidRequestException(Exception):
-    pass
-
-
-class OperationFailureException(Exception):
-    pass
 
 
 def inventoryitem(request, operation, user=None, product_id=None):

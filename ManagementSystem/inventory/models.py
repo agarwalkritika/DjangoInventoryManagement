@@ -1,6 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-
+from .exceptions import *
 import time
 import uuid
 
@@ -90,14 +90,6 @@ class CustomUserManager:
             return False
 
 
-class LockedRowUpdateRequest(Exception):
-    pass
-
-
-class PrimaryKeyMissingException(Exception):
-    pass
-
-
 class Inventory(models.Model):
     product_id = models.CharField(max_length=10, primary_key=True)
     product_name = models.CharField(max_length=32)
@@ -107,79 +99,6 @@ class Inventory(models.Model):
     batch_date = models.DateField()
     quantity = models.IntegerField()
     status = models.CharField(max_length=8, choices=[("APPROVED", "APPROVED"), ("PENDING", "PENDING")])
-
-
-# Contains the field
-class Approvals(models.Model):
-    product_id = models.CharField(max_length=10)
-    product_name = models.CharField(max_length=32)
-    vendor = models.CharField(max_length=32)
-    mrp = models.FloatField()
-    batch_num = models.CharField(max_length=32)
-    batch_date = models.DateField()
-    quantity = models.IntegerField()
-    status = models.CharField(max_length=8, choices=[("APPROVED", "APPROVED"), ("PENDING", "PENDING")])
-
-    email_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE, blank=False)
-    request_id = models.CharField(max_length=32, blank=False)
-    operation = models.CharField(max_length=10,
-                                 choices=[("UPDATE", "UPDATE"), ("CREATE", "CREATE"), ("DELETE", "DELETE")])
-
-
-class ApprovalsHandler:
-    @staticmethod
-    def create_approval(data_list, operation, requester, request_id):
-        # Not validating anything here, as the caller model handler is expected to do validations before sending
-        for row_dict in data_list:
-            new_approval_row = Approvals()
-            new_approval_row.request_id = request_id
-            new_approval_row.email_id = requester
-            new_approval_row.operation = operation
-            # All attributes are not required for the delete operation
-            if operation == "DELETE":
-                new_approval_row.product_id = row_dict['product_id']
-            else:
-                for sent_attribute, sent_attribute_value in row_dict.items():
-                    setattr(new_approval_row, sent_attribute, sent_attribute_value)
-            new_approval_row.status = "PENDING"
-            new_approval_row.save()
-
-    @staticmethod
-    def approve_request(approval_row_id, user):
-        try:
-            approval_object = Approvals.objects.get(id=approval_row_id)
-            row_dict = {
-                "product_id":
-                    approval_object.product_id,
-                "product_name": approval_object.product_name,
-                "vendor": approval_object.vendor,
-                "mrp": approval_object.mrp,
-                "batch_num": approval_object.batch_num,
-                "batch_date": approval_object.batch_date,
-                "quantity": approval_object.quantity,
-                "status": "PENDING"
-            }
-            if approval_object.operation == "UPDATE" or approval_object.operation == "CREATE":
-                res, msg = InventoryHandler.update(data_list=[row_dict], operation=approval_object.operation,
-                                                   user=user, is_approval_request=True)
-            elif approval_object.operation == "DELETE":
-                res, msg = InventoryHandler.delete(data_list=[row_dict], user=user, is_approval_request=True)
-            if res:
-                approval_object.delete()
-            return res, msg
-        except Approvals.DoesNotExist:
-            return False, "Invalid Approval ID"
-
-    @staticmethod
-    def deny_request(approval_row_id, user):
-        try:
-            approval_object = Approvals.objects.get(id=approval_row_id)
-            data_list = [{"product_id":approval_object.product_id}]
-            approval_object.delete()
-            InventoryHandler.unlock_row(data_list=data_list, user=user)
-            return True, "Successfully deleted the Approval"
-        except Approvals.DoesNotExist:
-            return False, "Approval ID does not exist"
 
 
 class InventoryHandler:
@@ -329,4 +248,79 @@ class InventoryHandler:
             success_status = True
             message = "All attributes updated successfully"
         return success_status, message
+
+
+class Approvals(models.Model):
+    product_id = models.CharField(max_length=10)
+    product_name = models.CharField(max_length=32)
+    vendor = models.CharField(max_length=32)
+    mrp = models.FloatField()
+    batch_num = models.CharField(max_length=32)
+    batch_date = models.DateField()
+    quantity = models.IntegerField()
+    status = models.CharField(max_length=8, choices=[("APPROVED", "APPROVED"), ("PENDING", "PENDING")])
+
+    email_id = models.ForeignKey(CustomUser, on_delete=models.CASCADE, blank=False)
+    request_id = models.CharField(max_length=32, blank=False)
+    operation = models.CharField(max_length=10,
+                                 choices=[("UPDATE", "UPDATE"), ("CREATE", "CREATE"), ("DELETE", "DELETE")])
+
+
+class ApprovalsHandler:
+    @staticmethod
+    def create_approval(data_list, operation, requester, request_id):
+        # Not validating anything here, as the caller model handler is expected to do validations before sending
+        for row_dict in data_list:
+            new_approval_row = Approvals()
+            new_approval_row.request_id = request_id
+            new_approval_row.email_id = requester
+            new_approval_row.operation = operation
+            # All attributes are not required for the delete operation
+            if operation == "DELETE":
+                new_approval_row.product_id = row_dict['product_id']
+            else:
+                for sent_attribute, sent_attribute_value in row_dict.items():
+                    setattr(new_approval_row, sent_attribute, sent_attribute_value)
+            new_approval_row.status = "PENDING"
+            new_approval_row.save()
+
+    @staticmethod
+    def approve_request(approval_row_id, user):
+        try:
+            approval_object = Approvals.objects.get(id=approval_row_id)
+            row_dict = {
+                "product_id":
+                    approval_object.product_id,
+                "product_name": approval_object.product_name,
+                "vendor": approval_object.vendor,
+                "mrp": approval_object.mrp,
+                "batch_num": approval_object.batch_num,
+                "batch_date": approval_object.batch_date,
+                "quantity": approval_object.quantity,
+                "status": "PENDING"
+            }
+            if approval_object.operation == "UPDATE" or approval_object.operation == "CREATE":
+                res, msg = InventoryHandler.update(data_list=[row_dict], operation=approval_object.operation,
+                                                   user=user, is_approval_request=True)
+            elif approval_object.operation == "DELETE":
+                res, msg = InventoryHandler.delete(data_list=[row_dict], user=user, is_approval_request=True)
+            if res:
+                approval_object.delete()
+            return res, msg
+        except Approvals.DoesNotExist:
+            return False, "Invalid Approval ID"
+
+    @staticmethod
+    def deny_request(approval_row_id, user):
+        try:
+            approval_object = Approvals.objects.get(id=approval_row_id)
+            data_list = [{"product_id":approval_object.product_id}]
+            approval_object.delete()
+            InventoryHandler.unlock_row(data_list=data_list, user=user)
+            return True, "Successfully deleted the Approval"
+        except Approvals.DoesNotExist:
+            return False, "Approval ID does not exist"
+
+
+
 
