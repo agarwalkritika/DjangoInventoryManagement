@@ -3,8 +3,89 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from .models import Inventory, InventoryHandler, Approvals, ApprovalsHandler, CustomUserManager
 from .authorizer import auth_required
+from .forms import InventoryForm, InventoryModelForm
 from django.core import serializers
 import json
+
+
+
+class IllegalMethodException(Exception):
+    pass
+
+
+class IllegalBodyException(Exception):
+    pass
+
+class InvalidRequestException(Exception):
+    pass
+
+
+class OperationFailureException(Exception):
+    pass
+
+
+def inventoryitem(request, operation, user=None, product_id=None):
+    context = {'error': "Unknown Error"}
+    status_code = 401
+    try:
+        if operation == "CREATE":
+            if request.method == "GET":
+                context['form'] = InventoryModelForm()
+            if request.method == "POST":
+                form = InventoryModelForm(request.POST)
+                context['form'] = form
+                if not form.is_valid():
+                    raise InvalidRequestException  # TODO: Append the validation Error in the thrown Error
+                form.cleaned_data['status'] = "PENDING"
+                data_list = [dict(form.cleaned_data)]
+                res, msg = InventoryHandler.update(data_list=data_list, user=user, operation="CREATE")
+                context['error'] = msg
+                if not res:
+                    raise OperationFailureException
+        elif operation == "UPDATE" and product_id:
+            if request.method == "GET":
+                instance = Inventory.objects.get(product_id=product_id)
+                form = InventoryModelForm(instance=instance)
+                # TODO: Set non editable
+                context['form'] = form
+            if request.method == "POST":
+                form = InventoryForm(request.POST)
+                context['form'] = form
+                if not form.is_valid():
+                    raise InvalidRequestException   # TODO: Append the validation Error in the thrown Error
+                form.cleaned_data['status'] = "PENDING"
+                data_list = [dict(form.cleaned_data)]
+                res, msg = InventoryHandler.update(data_list=data_list, user=user, operation="UPDATE")
+                context['error'] = msg
+                if not res:
+                    raise OperationFailureException
+        elif operation == "DELETE" and product_id:
+            if request.method == "GET":
+                instance = Inventory.objects.get(product_id=product_id)
+                # TODO: If instance status is pending don't send the form in status, instead send error !
+                form = InventoryModelForm(instance=instance)
+                # TODO: Set non editable
+                context['form'] = form
+            if request.method == "POST":
+                form = InventoryForm(request.POST)
+                context['form'] = form
+                if not form.is_valid():
+                    raise InvalidRequestException  # TODO: Append the validation Error in the thrown Error
+                form.cleaned_data['status'] = "PENDING"
+                data_list = [dict(form.cleaned_data)]
+                res, msg = InventoryHandler.delete(data_list=data_list, user=user)
+                context['error'] = msg
+                if not res:
+                    raise OperationFailureException
+    except Inventory.DoesNotExist:
+        context['error'] = "Illegal Product ID requested for alteration"
+    except InvalidRequestException:
+        context['error'] = "Invalid Request"
+    except OperationFailureException:
+        pass  # The error message is already set
+    else:
+        status_code = 200
+    return render(request=request, template_name="inventoryitem.html", context=context, status=status_code)
 
 
 @csrf_exempt
@@ -86,15 +167,6 @@ def approvals(request, user=None):
             status_code = 401
             response_dict['Message'] = "id Key missing"
     return JsonResponse(data=response_dict, safe=False, status=status_code)
-
-
-class IllegalMethodException(Exception):
-    pass
-
-
-class IllegalBodyException(Exception):
-    pass
-
 
 @csrf_exempt
 def login(request):

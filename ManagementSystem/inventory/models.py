@@ -187,6 +187,14 @@ class InventoryHandler:
     primary_key = 'product_id'
 
     @staticmethod
+    def get_item(product_id):
+        try:
+            return Inventory.objects.get(product_id=product_id)
+        except Inventory.DoesNotExist:
+            return False
+
+
+    @staticmethod
     def update(data_list, operation, user, is_approval_request=False):
         """
         :param is_approval_request: Only when approving a request
