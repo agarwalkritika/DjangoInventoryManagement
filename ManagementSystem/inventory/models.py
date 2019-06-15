@@ -320,7 +320,3 @@ class ApprovalsHandler:
             return True, "Successfully deleted the Approval"
         except Approvals.DoesNotExist:
             return False, "Approval ID does not exist"
-
-
-
-

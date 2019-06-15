@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>Inventory
+    <meta charset="UTF-8">
+    <title>Inventory Details</title>
+</head>
+<body>
+<p>
+    <table border="1">
+    <caption>Inventory Information</caption>
+  <tr>
+    <th>Product ID</th>
+    <th>Product Name</th>
+    <th>Status</th>
+      <th>Action</th>
+      <th>Action</th>
+  </tr>
+    {% for inventory_record in InventoryRecords %}
+  <tr>
+      <td>{{ inventory_record.product_id }}</td>
+      <td>{{ inventory_record.product_name }}</td>
+      <td>{{ inventory_record.status }}</td>
+      <td><button type="button"><a href="{% url 'inventoryitemedit' product_id=inventory_record.product_id operation='UPDATE' %}">Edit</a></button></td>
+      <td><button type="button"><a href="{% url 'inventoryitemedit' product_id=inventory_record.product_id operation='DELETE' %}">Delete</a></button></td>
+  </tr>
+    {% endfor %}
+</table>
+</p>
+</body>
+</html>
