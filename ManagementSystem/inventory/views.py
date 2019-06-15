@@ -1,14 +1,15 @@
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from .models import Inventory, InventoryHandler, Approvals, ApprovalsHandler, CustomUserManager
 from .authorizer import auth_required
-from .forms import InventoryForm, InventoryModelForm
+from .forms import InventoryForm, InventoryModelForm, LoginForm
 from .exceptions import *
 from django.core import serializers
 import json
 
 
+@auth_required
 def inventoryitem(request, operation, user=None, product_id=None):
     context = {'error': "Unknown Error"}
     status_code = 401
@@ -175,50 +176,79 @@ def approvals(request, user=None):
 
 @csrf_exempt
 def login(request):
-    message = {}
+    response_dict = {}
     status_code = 401
     try:
-        if request.method != "POST":
-            message['Error'] = "Please send a post request with required fields"
-            raise IllegalMethodException
-        if not request.body:
-            raise IllegalBodyException
-        request_body = json.loads(request.body)
-        if not ('username' in request_body and request_body['username']):
-            raise IllegalBodyException
-        if not ('password' in request_body and request_body['password']):
-            raise IllegalBodyException
-        auth_token = CustomUserManager.authenticate(username=request_body['username'],
-                                                    password=request_body['password'])
-        if auth_token:
-            message['x-inv-auth-token'] = auth_token
-            status_code = 200
+        if request.method == "GET":
+            if 'web' in request.path:
+                response_dict['form'] = LoginForm()
+            else:
+                raise IllegalMethodException    # GET is not supported for APIs
+        elif request.method == "POST":
+            if 'web' in request.path:
+                form = LoginForm(request.POST)
+                response_dict['form'] = form
+                if not form.is_valid():
+                    raise IllegalBodyException
+                request_body = form.cleaned_data
+            else:
+                if not request.body:
+                    raise IllegalBodyException
+                request_body = json.loads(request.body)
+                if not ('email_id' in request_body and request_body['email_id']):
+                    raise IllegalBodyException
+                if not ('password' in request_body and request_body['password']):
+                    raise IllegalBodyException
+            auth_token = CustomUserManager.authenticate(email_id=request_body['email_id'],
+                                                        password=request_body['password'])
+            if not auth_token:
+                raise InvalidCredentialsException
+            if 'web' in request.path:
+                request.session['x-inv-auth-token'] = auth_token
+                return redirect('inventory')
+            else:
+                response_dict['x-inv-auth-token'] = auth_token
+                status_code = 200
         else:
-            message['Error'] = "Invalid Credentials"
+            raise IllegalMethodException
     except IllegalMethodException:
-        message['Error'] = "Illegal request type"
+        response_dict['Error'] = "Illegal request type"
     except IllegalBodyException:
-        message['Error'] = "Illegal body"
-    return JsonResponse(data=message, status=status_code)
+        response_dict['Error'] = "Illegal body"
+    except InvalidCredentialsException:
+        response_dict['Error'] = "Invalid Credentials"
+    if 'web' in request.path:
+        return render(request=request, template_name='login.html', context=response_dict)
+    else:
+        return JsonResponse(data=response_dict, status=status_code)
 
 
 @csrf_exempt
 def logout(request):
     status_code = 401
-    message = {}
+    response_dict = {
+        'is_logout_success': False
+    }
     try:
-        if not ('x-inv-auth-token' in request.headers and request.headers['x-inv-auth-token']):
-            raise IllegalBodyException
-        user = CustomUserManager.get_user(auth_token=request.headers['x-inv-auth-token'])
-        if user:
-            if CustomUserManager.unauthenticate(user=user) is True:
-                status_code = 200
-                message['Message'] = "Signed Out successfully"
-            else:
-                status_code = 501
-                message['Message'] = "ServerError. Could not logout !"
+        auth_token = None
+        if 'web' in request.path:
+            auth_token = request.session.get('x-inv-auth-token', None)
         else:
-            message['Error'] = "You were never logged in!"
+            auth_token = request.headers.get('x-inv-auth-token', None)
+        if not auth_token:
+            raise IllegalBodyException
+        user = CustomUserManager.get_user(auth_token=auth_token)
+        if not user:
+            raise IllegalBodyException
+        if CustomUserManager.unauthenticate(user=user) is True:
+            status_code = 200
+            response_dict['Message'] = "Signed Out successfully"
+        else:
+            status_code = 501
+            response_dict['Message'] = "ServerError. Could not logout !"
     except IllegalBodyException:
-        message['Error'] = "Illegal request"
-    return JsonResponse(data=message, status=status_code)
+        response_dict['Error'] = "Illegal request"
+    if 'web' in request.path:
+        return render(request=request, status=status_code, context=response_dict, template_name='logout.html')
+    else:
+        return JsonResponse(data=response_dict, status=status_code)

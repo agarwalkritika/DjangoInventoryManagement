@@ -19,3 +19,8 @@ class InventoryForm(forms.Form):
     batch_num = forms.CharField(max_length=32)
     batch_date = forms.DateField(widget=forms.SelectDateWidget())
     quantity = forms.IntegerField()
+
+
+class LoginForm(forms.Form):
+    email_id = forms.CharField(widget=forms.EmailInput, required=True, label="Email ID")
+    password = forms.CharField(widget=forms.PasswordInput, required=True, max_length=32, label="Password")

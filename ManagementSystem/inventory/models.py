@@ -64,9 +64,9 @@ class CustomUserManager:
             return True
 
     @staticmethod
-    def authenticate(username, password):
+    def authenticate(email_id, password):
         try:
-            user = CustomUser.objects.get(username=username)
+            user = CustomUser.objects.get(email_id=email_id)
             if str(user.password) == str(password):
                 CustomUserManager.generate_auth_token(user=user)
                 return user.auth_token

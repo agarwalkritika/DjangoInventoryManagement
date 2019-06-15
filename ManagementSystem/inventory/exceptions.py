@@ -20,3 +20,7 @@ class LockedRowUpdateRequest(Exception):
 
 class PrimaryKeyMissingException(Exception):
     pass
+
+
+class InvalidCredentialsException(Exception):
+    pass

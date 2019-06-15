@@ -8,4 +8,5 @@ urlpatterns = [
     path('inventoryitem/<str:operation>', inventoryitem, name='inventoryitem'),
     path('inventoryitem/<str:operation>/<str:product_id>', inventoryitem, name='inventoryitemedit'),
     path('login', login, name='login'),
+    path('logout', logout, name='logout'),
 ]
