@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>Approvals
+    <meta charset="UTF-8">
+    <title>Approval Details</title>
+</head>
+<body>
+<p>
+    {{ Message }}
+</p>
+<p>
+<form method="post">
+    <button type="submit" name="operation" value="APPROVE">Approve</button>
+    <button type="submit" name="operation" value="DENY">Deny</button>
+    <table border="1">
+    <caption>Approval Details</caption>
+  <tr>
+    <th>Approval ID</th>
+    <th>Operation</th>
+      <th>Product ID</th>
+    <th>Product Name</th>
+    <th>Status</th>
+  </tr>
+    {% for approval_record in ApprovalRecords %}
+  <tr>
+      <td><input type="radio" name="id" value="{{ approval_record.id }}" checked> {{ approval_record.id }}<br></td>
+      <td>{{ approval_record.operation }}</td>
+      <td>{{ approval_record.product_id }}</td>
+      <td>{{ approval_record.product_name }}</td>
+      <td>{{ approval_record.status }}</td>
+  </tr>
+    {% endfor %}
+</table>
+</form>
+</p>
+</body>
+</html>
