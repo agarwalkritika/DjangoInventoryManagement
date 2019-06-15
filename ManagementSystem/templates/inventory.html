@@ -1,32 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>Inventory
+<head>
     <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
     <title>Inventory Details</title>
 </head>
 <body>
+<nav class="navbar navbar-inverse">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <a class="navbar-brand">Inventory Management</a>
+    </div>
+    <ul class="nav navbar-nav">
+      <li class="active"><a href="{% url 'inventory' %}">Inventory</a></li>
+      <li><a href="{% url 'approvals' %}">Approvals</a></li>
+    </ul>
+    <ul class="nav navbar-nav navbar-right">
+      <li><a href="{% url 'logout' %}"><span class="glyphicon glyphicon-log-out"></span> Logout</a></li>
+    </ul>
+  </div>
+</nav>
+<div class="container">
+    <a class="btn btn-info" href="{% url 'inventoryitem' operation='CREATE' %}">Add a new Inventory Item</a>
+</div>
+<div class="container">
+    <h2>Inventory Information</h2>
 <p>
-<a href="{% url 'logout' %}">Click here to logout</a>
-    <button type="button"><a href="{% url 'inventoryitem' operation='CREATE' %}">Add a new Inventory Item</a></button>
-    <table border="1">
+    <table class="table">
     <caption>Inventory Information</caption>
-  <tr>
-    <th>Product ID</th>
-    <th>Product Name</th>
-    <th>Status</th>
-      <th>Action</th>
-      <th>Action</th>
-  </tr>
+    <thead>
+      <tr>
+        <th>Product ID</th>
+        <th>Product Name</th>
+          <th>vendor</th>
+          <th>mrp</th>
+          <th>batch_num</th>
+          <th>batch_date</th>
+          <th>quantity</th>
+        <th>Status</th>
+          <th>Action</th>
+          <th>Action</th>
+      </tr>
+  </thead>
+    <tbody>
     {% for inventory_record in InventoryRecords %}
-  <tr>
-      <td>{{ inventory_record.product_id }}</td>
-      <td>{{ inventory_record.product_name }}</td>
-      <td>{{ inventory_record.status }}</td>
-      <td><button type="button"><a href="{% url 'inventoryitemedit' product_id=inventory_record.product_id operation='UPDATE' %}">Edit</a></button></td>
-      <td><button type="button"><a href="{% url 'inventoryitemedit' product_id=inventory_record.product_id operation='DELETE' %}">Delete</a></button></td>
-  </tr>
+      <tr>
+          <td>{{ inventory_record.product_id }}</td>
+          <td>{{ inventory_record.product_name }}</td>
+          <td>{{ inventory_record.vendor }}</td>
+          <td>{{ inventory_record.mrp }}</td>
+          <td>{{ inventory_record.batch_num }}</td>
+          <td>{{ inventory_record.quantity }}</td>
+          <td>{{ inventory_record.status }}</td>
+          <td>{{ inventory_record.status }}</td>
+          <td><a class="btn btn-warning" href="{% url 'inventoryitemedit' product_id=inventory_record.product_id operation='UPDATE' %}">Edit</a></td>
+          <td><a class="btn btn-danger" href="{% url 'inventoryitemedit' product_id=inventory_record.product_id operation='DELETE' %}">Delete</a></td>
+      </tr>
     {% endfor %}
-</table>
+    </tbody>
+    </table>
 </p>
+</div>
 </body>
 </html>
